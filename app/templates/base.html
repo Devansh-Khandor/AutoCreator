@@ -1,0 +1,37 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>{% block title %}AutoCreator{% endblock %}</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <style>
+    textarea{min-height:140px}
+    .badge{display:inline-block;padding:.15rem .45rem;border-radius:.5rem;font-size:.85em}
+    .badge-ok{background:#e6ffed;border:1px solid #a6f3b4}
+    .badge-warn{background:#fff6e5;border:1px solid #ffd08a}
+    .badge-err{background:#ffecec;border:1px solid #ffb3b3}
+    .muted{color:#888;font-size:.9em}
+  </style>
+</head>
+<body class="container">
+  <header style="display:flex;gap:1rem;align-items:center;justify-content:space-between">
+    <h2><a href="/">AutoCreator</a> — AI Content Agent</h2>
+    <nav>
+      <a href="/topic/new">Topic</a>
+      <a href="/personal/new">Personal</a>
+      <a href="https://github.com/" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+  </header>
+  {% block content %}{% endblock %}
+  <script>
+  function copyText(id){
+    const t = document.getElementById(id || 'finalText');
+    if(!t) return;
+    t.select(); t.setSelectionRange(0, 99999);
+    navigator.clipboard.writeText(t.value);
+    alert('Copied to clipboard! Open LinkedIn and paste.');
+  }
+  </script>
+</body>
+</html>

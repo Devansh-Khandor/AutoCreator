@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}AutoCreator — Personal{% endblock %}
+{% block content %}
+<main>
+  {% if error %}
+  <article style="background:#ffecec;border:1px solid #ffb3b3;padding:.75rem;border-radius:8px">
+    <strong>Error:</strong> {{ error }}
+  </article>
+  {% endif %}
+
+  <form method="post" action="/personal/generate">
+    <h3>Create a personal story post</h3>
+    <div class="grid">
+      <input name="headline" placeholder="Optional hook (one line)" value="{{ headline or '' }}">
+      <select name="platform">
+        <option value="linkedin" {% if platform=='linkedin' %}selected{% endif %}>LinkedIn</option>
+        <option value="bluesky" {% if platform=='bluesky' %}selected{% endif %}>Bluesky</option>
+      </select>
+      <select name="length">
+        <option value="short"  {% if length=='short' %}selected{% endif %}>Short</option>
+        <option value="medium" {% if length!='short' and length!='long' %}selected{% endif %}>Medium</option>
+        <option value="long"   {% if length=='long' %}selected{% endif %}>Long</option>
+      </select>
+    </div>
+    <div class="grid">
+      <input name="role" placeholder="Role (e.g., ML intern at X)" value="{{ role or '' }}">
+      <input name="situation" placeholder="Context (where/when)" value="{{ situation or '' }}">
+      <input name="challenge" placeholder="Challenge" value="{{ challenge or '' }}">
+      <input name="action" placeholder="Action you took" value="{{ action or '' }}">
+      <input name="result" placeholder="Result (ideally with a number)" value="{{ result or '' }}">
+      <input name="lesson" placeholder="Lesson learned" value="{{ lesson or '' }}">
+    </div>
+    <p class="muted">We’ll craft the post using C → C → A → R → L (Context, Challenge, Action, Result, Lesson).</p>
+    <button type="submit">Generate 3 Variants</button>
+  </form>
+
+  {% if variants %}
+  <hr>
+  <h4>Variants</h4>
+  {% for v in variants %}
+    <article>
+      <header><strong>Variant {{ v.variant }}</strong></header>
+      <p style="white-space:pre-wrap">{{ v.text }}</p>
+      <details><summary>Rationale</summary><p>{{ v.rationale }}</p></details>
+
+      <form method="post" action="/personal/finalize" style="margin-top:.5rem">
+        <input type="hidden" name="platform" value="{{ platform }}">
+        <textarea name="text">{{ v.text }}</textarea>
+        <button type="submit">Finalize for {{ platform|capitalize }}</button>
+      </form>
+
+      <form method="post" action="/personal/factcheck" style="margin-top:.25rem">
+        <input type="hidden" name="platform" value="{{ platform }}">
+        <textarea name="text" style="display:none">{{ v.text }}</textarea>
+        <button type="submit" class="secondary">Fact-check this draft</button>
+      </form>
+    </article>
+  {% endfor %}
+  {% endif %}
+
+  {% if final_text %}
+  <hr>
+  <h4>Finalized</h4>
+  <textarea id="finalText">{{ final_text }}</textarea>
+  <div class="grid">
+    <form method="post" action="/personal/publish/bluesky">
+      <input type="hidden" name="text" value="{{ final_text }}">
+      <button type="submit">Publish to Bluesky</button>
+    </form>
+    <button type="button" onclick="copyText('finalText')">Copy for LinkedIn</button>
+  </div>
+
+  <form method="post" action="/personal/factcheck" style="margin-top:.5rem">
+    <input type="hidden" name="platform" value="{{ platform }}">
+    <textarea name="text" style="display:none">{{ final_text }}</textarea>
+    <button type="submit" class="secondary">Fact-check finalized text</button>
+  </form>
+  {% endif %}
+
+  {% if fact_checked %}
+  <hr>
+  <h4>Fact-check</h4>
+  {% if audits and audits|length>0 %}
+    <p>Found <strong>{{ audit_count }}</strong> factual {{ 'claim' if audit_count==1 else 'claims' }}.</p>
+    <ol>
+    {% for a in audits %}
+      {% set cls = 'badge-ok' if a.confidence >= 0.85 else ('badge-warn' if a.confidence >= 0.7 else 'badge-err') %}
+      <li style="margin-bottom:1rem">
+        <strong>{{ a.claim }}</strong>
+        <span class="badge {{ cls }}" title="Confidence">{{ a.confidence }}</span>
+        <div style="margin-top:.5rem">
+          {% for s in a.sources %}
+            <div style="margin-left:.75rem">
+              <a href="{{ s.url }}" target="_blank">{{ s.title }}</a>
+              <div class="muted">{{ s.snippet }}</div>
+            </div>
+          {% endfor %}
+        </div>
+      </li>
+    {% endfor %}
+    </ol>
+  {% else %}
+    <p>🔍 Fact-check ran, but <strong>no factual claims</strong> were detected.</p>
+  {% endif %}
+  {% endif %}
+
+  {% if publish %}
+  <p>
+    {% if publish.ok %}
+      ✅ Published! {% if publish.permalink %}<a href="{{ publish.permalink }}" target="_blank">View post</a>{% endif %}
+    {% else %}
+      ❌ {{ publish.message }}
+    {% endif %}
+  </p>
+  {% endif %}
+</main>
+{% endblock %}

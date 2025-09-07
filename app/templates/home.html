@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}AutoCreator — Home{% endblock %}
+{% block content %}
+<main>
+  <article>
+    <h3>What do you want to create?</h3>
+    <div class="grid">
+      <a href="/topic/new" role="button">Topical / Insight Post</a>
+      <a href="/personal/new" role="button" class="secondary">Personal Story Post</a>
+    </div>
+    <p class="muted">Pick <strong>Topic</strong> to use web sources and structured facts. Pick <strong>Personal</strong> to craft a first-person story with your background.</p>
+  </article>
+</main>
+{% endblock %}
