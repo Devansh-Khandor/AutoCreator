@@ -12,17 +12,29 @@
     .badge-warn{background:#fff6e5;border:1px solid #ffd08a}
     .badge-err{background:#ffecec;border:1px solid #ffb3b3}
     .muted{color:#888;font-size:.9em}
+  
+    /* NEW: right-side nav spacing & separators */
+    header nav.nav { display:flex; align-items:center; gap:1rem; }
+    header nav.nav a { text-decoration: underline; }
+    header nav.nav .divider { opacity:.55; user-select:none; }
+    @media (max-width: 640px){
+      header nav.nav .divider { display:none; } /* cleaner on mobile */
+    }
   </style>
+  
 </head>
 <body class="container">
-  <header style="display:flex;gap:1rem;align-items:center;justify-content:space-between">
-    <h2><a href="/">AutoCreator</a> — AI Content Agent</h2>
-    <nav>
-      <a href="/topic/new">Topic</a>
-      <a href="/personal/new">Personal</a>
-      <a href="https://github.com/" target="_blank" rel="noopener">GitHub</a>
-    </nav>
-  </header>
+    <header style="display:flex;gap:1rem;align-items:center;justify-content:space-between">
+        <h2><a href="/">AutoCreator</a> — AI Content Agent</h2>
+        <nav class="nav">
+          <a href="/topic/new">Topic</a>
+          <span class="divider">|</span>
+          <a href="/personal/new">Personal</a>
+          <span class="divider">|</span>
+          <a href="https://github.com/Devansh-Khandor/AutoCreator" target="_blank" rel="noopener">GitHub ↗</a>
+        </nav>
+    </header>
+      
   {% block content %}{% endblock %}
   <script>
   function copyText(id){
