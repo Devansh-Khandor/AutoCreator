@@ -1,0 +1,187 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>AutoCreator</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <style>textarea{min-height:140px}</style>
+  <style>
+    .badge{display:inline-block;padding:.15rem .45rem;border-radius:.5rem;font-size:.85em}
+    .badge-ok{background:#e6ffed;border:1px solid #a6f3b4}
+    .badge-warn{background:#fff6e5;border:1px solid #ffd08a}
+    .badge-err{background:#ffecec;border:1px solid #ffb3b3}
+    .muted{color:#888;font-size:.9em}
+  </style>
+</head>
+<body class="container">
+  <h2>AutoCreator — AI Content Agent</h2>
+
+  {% if fact_checked %}
+  <p>
+    <span class="badge {% if audit_count>0 %}badge-ok{% else %}badge-warn{% endif %}">
+      Fact-check ran • {{ audit_count }} {{ 'claim' if audit_count==1 else 'claims' }} found
+    </span>
+  </p>
+  {% endif %}
+
+  {% if error %}
+  <article style="background:#ffecec;border:1px solid #ffb3b3;padding:0.75rem;border-radius:8px">
+    <strong>Generation error:</strong> {{ error }}
+    <br/>Tip: Try again in a minute, or switch to a lighter model in <code>.env</code>.
+  </article>
+  {% endif %}
+
+  <form method="post" action="/ui/generate">
+    <div class="grid">
+      <input name="topic" placeholder="Topic (e.g., How to design guardrails for AI agents)" value="{{ topic or '' }}" required>
+      <input name="angle" placeholder="Angle (optional)" value="{{ angle or '' }}">
+      <select name="platform">
+        <option value="linkedin" {% if platform=='linkedin' %}selected{% endif %}>LinkedIn</option>
+        <option value="bluesky" {% if platform=='bluesky' %}selected{% endif %}>Bluesky</option>
+      </select>
+      <select name="post_type" id="postType">
+        <option value="topical" {% if post_type!='personal' %}selected{% endif %}>Topical / Insight</option>
+        <option value="personal" {% if post_type=='personal' %}selected{% endif %}>Personal story</option>
+      </select>
+      <select name="length">
+        <option value="short" {% if length=='short' %}selected{% endif %}>Short</option>
+        <option value="medium" {% if length!='short' and length!='long' %}selected{% endif %}>Medium</option>
+        <option value="long" {% if length=='long' %}selected{% endif %}>Long</option>
+      </select>
+      <label>
+        <input type="checkbox" name="use_research" value="1">
+        Use research pack (web sources)
+      </label>
+      <button type="submit">Generate 3 Variants</button>
+    </div>
+    <div id="bgWrap" style="margin-top:.5rem; {% if post_type!='personal' %}display:none{% endif %}">
+      <textarea name="background" placeholder="Your background for a personal post (role, situation, actions, result, lesson)">{{ background or '' }}</textarea>
+      <p class="muted">We’ll write in first person using Context → Challenge → Action → Result → Lesson.</p>
+    </div>
+  </form>
+
+  {% if variants %}
+  <hr>
+  <h4>Variants</h4>
+
+  {% if sources_used and sources_used|length > 0 %}
+    <p class="muted">Sources used for drafting (Topical mode):</p>
+    <ul>
+      {% for s in sources_used %}
+        <li><a href="{{ s.url }}" target="_blank">{{ s.title }}</a></li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+
+  {% for v in variants %}
+    <article>
+      <header><strong>Variant {{ v.variant }}</strong></header>
+      <p style="white-space:pre-wrap">{{ v.text }}</p>
+      <details><summary>Rationale</summary><p>{{ v.rationale }}</p></details>
+
+      <form method="post" action="/ui/finalize" style="margin-top:0.5rem">
+        <input type="hidden" name="platform" value="{{ platform }}">
+        <textarea name="text">{{ v.text }}</textarea>
+        <button type="submit">Finalize for {{ platform|capitalize }}</button>
+      </form>
+
+      <form method="post" action="/ui/factcheck" style="margin-top:0.25rem">
+        <input type="hidden" name="platform" value="{{ platform }}">
+        <textarea name="text" style="display:none">{{ v.text }}</textarea>
+        <button type="submit" class="secondary">Fact-check this draft</button>
+      </form>
+    </article>
+  {% endfor %}
+  {% endif %}
+
+  {% if final_text %}
+  <hr>
+  <h4>Finalized</h4>
+  <textarea id="finalText">{{ final_text }}</textarea>
+
+  {% set can_publish = True %}
+  {% if audits %}
+    {% for a in audits %}
+      {% if a.confidence < 0.7 %}
+        {% set can_publish = False %}
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+
+  <div class="grid">
+    {% if can_publish %}
+      <form method="post" action="/ui/publish/bluesky">
+        <input type="hidden" name="text" value="{{ final_text }}">
+        <button type="submit">Publish to Bluesky</button>
+      </form>
+    {% else %}
+      <button disabled title="Fix low-confidence claims before publishing">Publish to Bluesky (blocked)</button>
+    {% endif %}
+    <button onclick="copyText()">Copy for LinkedIn</button>
+  </div>
+
+  <form method="post" action="/ui/factcheck" style="margin-top:0.5rem">
+    <input type="hidden" name="platform" value="{{ platform }}">
+    <textarea name="text" style="display:none">{{ final_text }}</textarea>
+    <button type="submit" class="secondary">Fact-check finalized text</button>
+  </form>
+  {% endif %}
+
+  {% if fact_checked %}
+  <hr>
+  <h4>Fact-check</h4>
+  {% if audits and audits|length > 0 %}
+    <p>Found <strong>{{ audit_count }}</strong> factual {{ 'claim' if audit_count==1 else 'claims' }}.</p>
+    <ol>
+      {% for a in audits %}
+        {% set cls = 'badge-ok' if a.confidence >= 0.85 else ('badge-warn' if a.confidence >= 0.7 else 'badge-err') %}
+        <li style="margin-bottom:1rem">
+          <strong>{{ a.claim }}</strong>
+          <span class="badge {{ cls }}" title="Confidence">{{ a.confidence }}</span>
+          <div style="margin-top:0.5rem">
+            {% for s in a.sources %}
+              <div style="margin-left:0.75rem">
+                <a href="{{ s.url }}" target="_blank">{{ s.title }}</a>
+                <div style="font-size:0.9em; color:#666">{{ s.snippet }}</div>
+              </div>
+            {% endfor %}
+          </div>
+        </li>
+      {% endfor %}
+    </ol>
+    <p><small>Legend: <span class="badge badge-ok">≥0.85</span> strong • <span class="badge badge-warn">0.70–0.84</span> medium • <span class="badge badge-err">&lt;0.70</span> weak</small></p>
+  {% else %}
+    <p>🔍 Fact-check ran, but <strong>no factual claims</strong> were detected in this text.<br/>
+    Add a statistic, date, number, or specific assertion if you want verification.</p>
+  {% endif %}
+  {% endif %}
+
+  {% if publish %}
+    <p>
+      {% if publish.ok %}
+        ✅ Published! {% if publish.permalink %}<a href="{{ publish.permalink }}" target="_blank">View post</a>{% endif %}
+      {% else %}
+        ❌ {{ publish.message }}
+      {% endif %}
+    </p>
+  {% endif %}
+
+<script>
+const postType = document.getElementById('postType');
+const bgWrap = document.getElementById('bgWrap');
+if (postType) {
+  postType.addEventListener('change', () => {
+    bgWrap.style.display = (postType.value === 'personal') ? '' : 'none';
+  });
+}
+function copyText(){
+  const t = document.getElementById('finalText');
+  if (!t) return;
+  t.select(); t.setSelectionRange(0, 99999);
+  navigator.clipboard.writeText(t.value);
+  alert('Copied to clipboard! Open LinkedIn and paste.');
+}
+</script>
+</body>
+</html>
